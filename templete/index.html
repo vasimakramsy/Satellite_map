@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Agent Map Chat </title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Satellite Agent Map Chat</title>
     <style>
         body {
             margin: 0;
@@ -16,13 +16,13 @@
         #chat-container {
             width: 30%;
             padding: 10px;
-            background: rgba(245, 245, 245, 0.6); /* Semi-transparent */
+            background: rgba(245, 245, 245, 0.6);
             display: flex;
             flex-direction: column;
             position: absolute;
             right: 0;
             height: 100vh;
-            backdrop-filter: blur(8px); /* Blurred effect for better readability */
+            backdrop-filter: blur(8px);
             border-left: 2px solid rgba(255, 255, 255, 0.3);
         }
 
@@ -46,7 +46,7 @@
             flex: 1;
             overflow-y: auto;
             padding: 10px;
-            background: transparent; /* Fully transparent */
+            background: transparent;
         }
 
         .message {
@@ -70,7 +70,7 @@
         #chat-input {
             display: flex;
             padding: 10px;
-            background: rgba(255, 255, 255, 0.3); /* Light transparency */
+            background: rgba(255, 255, 255, 0.3);
             border-top: 1px solid rgba(255, 255, 255, 0.3);
         }
 
@@ -91,15 +91,16 @@
             border-radius: 5px;
             cursor: pointer;
         }
+
         h2 {
-        display: block;
-        font-size: 1.5em;
-        margin-top: 0.83em;
-        margin-bottom: 0.83em;
-        margin-left: 0;
-        margin-right: 0;
-        font-weight: bold;
-        color:blue;
+            display: block;
+            font-size: 1.5em;
+            margin-top: 0.83em;
+            margin-bottom: 0.83em;
+            margin-left: 0;
+            margin-right: 0;
+            font-weight: bold;
+            color: blue;
         }
     </style>
 </head>
@@ -109,10 +110,13 @@
         <div id="map"></div>
     </div>
 
-    <<div id="chat-container">
+    <div id="chat-container">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <h2>SATELLITE AGENT</h2>
-            <button onclick="location.reload()" style="padding: 6px 12px; font-size: 14px;">New Session</button>
+            <div>
+                <button onclick="location.reload()" style="padding: 6px 12px; font-size: 14px;">New Session</button>
+                <button id="delete-btn" onclick="deleteBBox()" style="padding: 6px 12px; font-size: 14px; display: none; margin-left: 10px;">Delete Area</button>
+            </div>
         </div>
         <div id="messages"></div>
         <div id="chat-input">
@@ -120,30 +124,29 @@
             <button onclick="sendMessage()">Send</button>
         </div>
     </div>
-    
 
     <script>
         let map, drawingManager, selectedRectangle = null;
         let bboxCoords = null;
-    
+
         function initMap() {
             map = new google.maps.Map(document.getElementById("map"), {
                 center: { lat: 24.7136, lng: 46.6753 },
                 zoom: 15,
                 mapTypeId: "satellite",
-                mapTypeControl: false // Remove the map/satellite toggle
+                mapTypeControl: false
             });
-    
+
             const searchBox = new google.maps.places.SearchBox(document.getElementById("search-box"));
             map.controls[google.maps.ControlPosition.TOP_CENTER].push(document.getElementById("search-box"));
-    
+
             searchBox.addListener("places_changed", () => {
                 const places = searchBox.getPlaces();
                 if (places.length === 0) return;
                 map.setCenter(places[0].geometry.location);
                 map.setZoom(15);
             });
-    
+
             drawingManager = new google.maps.drawing.DrawingManager({
                 drawingMode: google.maps.drawing.OverlayType.RECTANGLE,
                 drawingControl: true,
@@ -160,16 +163,16 @@
                     zIndex: 1
                 }
             });
-    
+
             drawingManager.setMap(map);
-    
+
             google.maps.event.addListener(drawingManager, 'overlaycomplete', function(event) {
                 if (selectedRectangle) {
                     selectedRectangle.setMap(null);
                 }
-    
+
                 selectedRectangle = event.overlay;
-    
+
                 const bounds = selectedRectangle.getBounds();
                 bboxCoords = {
                     north: bounds.getNorthEast().lat(),
@@ -177,26 +180,39 @@
                     south: bounds.getSouthWest().lat(),
                     west: bounds.getSouthWest().lng()
                 };
-    
+
                 // Disable further drawing after one rectangle
                 drawingManager.setDrawingMode(null);
+
+                // Show delete button
+                document.getElementById("delete-btn").style.display = "inline-block";
             });
         }
-    
+
+        function deleteBBox() {
+            if (selectedRectangle) {
+                selectedRectangle.setMap(null);
+                selectedRectangle = null;
+                bboxCoords = null;
+                drawingManager.setDrawingMode(google.maps.drawing.OverlayType.RECTANGLE);
+                document.getElementById("delete-btn").style.display = "none";
+            }
+        }
+
         function captureMapImage(message) {
             if (!bboxCoords) {
                 alert("Please select a bounding box first!");
                 return;
             }
-    
-            const apiKey = "AIzaSyC39DPK0MwCiJOmBIzTmX30IPg6kWeWW44"; // Replace with your actual API key
+
+            const apiKey = "AIzaSyC39DPK0MwCiJOmBIzTmX30IPg6kWeWW44";
             const mapCenter = `${(bboxCoords.north + bboxCoords.south) / 2},${(bboxCoords.east + bboxCoords.west) / 2}`;
             const zoom = 15;
             const mapSize = "600x400";
             const bboxOverlay = `&path=color:0xff0000ff|weight:5|${bboxCoords.north},${bboxCoords.west}|${bboxCoords.north},${bboxCoords.east}|${bboxCoords.south},${bboxCoords.east}|${bboxCoords.south},${bboxCoords.west}|${bboxCoords.north},${bboxCoords.west}`;
-    
+
             const staticMapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${mapCenter}&zoom=${zoom}&size=${mapSize}&maptype=satellite${bboxOverlay}&key=${apiKey}`;
-    
+
             fetch(staticMapUrl)
                 .then(response => response.blob())
                 .then(blob => {
@@ -204,7 +220,7 @@
                     formData.append("image", blob, "map_capture.png");
                     formData.append("bbox", JSON.stringify(bboxCoords));
                     formData.append("message", message);
-    
+
                     fetch("/process", {
                         method: "POST",
                         body: formData
@@ -215,44 +231,43 @@
                 })
                 .catch(error => console.error("Error fetching static map:", error));
         }
-    
+
         function sendMessage() {
             let messageBox = document.getElementById("message-box");
             let message = messageBox.value.trim();
-    
+
             if (!selectedRectangle) {
                 alert("Please select an area on the map first!");
                 return;
             }
-    
+
             if (!message) {
                 alert("Please enter a message!");
                 return;
             }
-    
+
             captureMapImage(message);
         }
-    
+
         function displayResponse(data) {
             let messagesDiv = document.getElementById("messages");
-    
+
             let userMessage = document.createElement("div");
             userMessage.classList.add("message", "user");
             userMessage.textContent = "USER: " + data.message;
             messagesDiv.appendChild(userMessage);
-    
+
             let assistantMessage = document.createElement("div");
             assistantMessage.classList.add("message", "assistant");
             assistantMessage.textContent = "ASSISTANT: " + data.response;
             messagesDiv.appendChild(assistantMessage);
-    
+
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
-    
+
         window.initMap = initMap;
     </script>
-    
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC39DPK0MwCiJOmBIzTmX30IPg6kWeWW44&libraries=places,drawing&callback=initMap"></script>
 
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC39DPK0MwCiJOmBIzTmX30IPg6kWeWW44&libraries=places,drawing&callback=initMap"></script>
 </body>
 </html>
