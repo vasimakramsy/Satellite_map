@@ -93,14 +93,26 @@
         }
 
         h2 {
-            display: block;
             font-size: 1.5em;
-            margin-top: 0.83em;
-            margin-bottom: 0.83em;
-            margin-left: 0;
-            margin-right: 0;
+            margin: 0.83em 0;
             font-weight: bold;
             color: blue;
+        }
+
+        /* Spinner style */
+        #loader {
+            display: none;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #007bff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -118,7 +130,10 @@
                 <button id="delete-btn" onclick="deleteBBox()" style="padding: 6px 12px; font-size: 14px; display: none; margin-left: 10px;">Delete Area</button>
             </div>
         </div>
+
+        <div id="loader"></div>
         <div id="messages"></div>
+
         <div id="chat-input">
             <input type="text" id="message-box" placeholder="Type a message">
             <button onclick="sendMessage()">Send</button>
@@ -181,10 +196,7 @@
                     west: bounds.getSouthWest().lng()
                 };
 
-                // Disable further drawing after one rectangle
                 drawingManager.setDrawingMode(null);
-
-                // Show delete button
                 document.getElementById("delete-btn").style.display = "inline-block";
             });
         }
@@ -197,39 +209,6 @@
                 drawingManager.setDrawingMode(google.maps.drawing.OverlayType.RECTANGLE);
                 document.getElementById("delete-btn").style.display = "none";
             }
-        }
-
-        function captureMapImage(message) {
-            if (!bboxCoords) {
-                alert("Please select a bounding box first!");
-                return;
-            }
-
-            const apiKey = "AIzaSyC39DPK0MwCiJOmBIzTmX30IPg6kWeWW44";
-            const mapCenter = `${(bboxCoords.north + bboxCoords.south) / 2},${(bboxCoords.east + bboxCoords.west) / 2}`;
-            const zoom = 15;
-            const mapSize = "600x400";
-            const bboxOverlay = `&path=color:0xff0000ff|weight:5|${bboxCoords.north},${bboxCoords.west}|${bboxCoords.north},${bboxCoords.east}|${bboxCoords.south},${bboxCoords.east}|${bboxCoords.south},${bboxCoords.west}|${bboxCoords.north},${bboxCoords.west}`;
-
-            const staticMapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${mapCenter}&zoom=${zoom}&size=${mapSize}&maptype=satellite${bboxOverlay}&key=${apiKey}`;
-
-            fetch(staticMapUrl)
-                .then(response => response.blob())
-                .then(blob => {
-                    let formData = new FormData();
-                    formData.append("image", blob, "map_capture.png");
-                    formData.append("bbox", JSON.stringify(bboxCoords));
-                    formData.append("message", message);
-
-                    fetch("/process", {
-                        method: "POST",
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => displayResponse(data))
-                    .catch(error => console.error("Error:", error));
-                })
-                .catch(error => console.error("Error fetching static map:", error));
         }
 
         function sendMessage() {
@@ -247,6 +226,48 @@
             }
 
             captureMapImage(message);
+            messageBox.value = "";
+        }
+
+        function captureMapImage(message) {
+            if (!bboxCoords) {
+                alert("Please select a bounding box first!");
+                return;
+            }
+
+            const apiKey = "AIzaSyC39DPK0MwCiJOmBIzTmX30IPg6kWeWW44";
+            const mapCenter = `${(bboxCoords.north + bboxCoords.south) / 2},${(bboxCoords.east + bboxCoords.west) / 2}`;
+            const zoom = 15;
+            const mapSize = "600x400";
+            const bboxOverlay = `&path=color:0xff0000ff|weight:5|${bboxCoords.north},${bboxCoords.west}|${bboxCoords.north},${bboxCoords.east}|${bboxCoords.south},${bboxCoords.east}|${bboxCoords.south},${bboxCoords.west}|${bboxCoords.north},${bboxCoords.west}`;
+
+            const staticMapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${mapCenter}&zoom=${zoom}&size=${mapSize}&maptype=satellite${bboxOverlay}&key=${apiKey}`;
+
+            // Show loader
+            document.getElementById("loader").style.display = "block";
+
+            fetch(staticMapUrl)
+                .then(response => response.blob())
+                .then(blob => {
+                    let formData = new FormData();
+                    formData.append("image", blob, "map_capture.png");
+                    formData.append("bbox", JSON.stringify(bboxCoords));
+                    formData.append("message", message);
+
+                    return fetch("/process", {
+                        method: "POST",
+                        body: formData
+                    });
+                })
+                .then(response => response.json())
+                .then(data => {
+                    displayResponse(data);
+                    document.getElementById("loader").style.display = "none";
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    document.getElementById("loader").style.display = "none";
+                });
         }
 
         function displayResponse(data) {
