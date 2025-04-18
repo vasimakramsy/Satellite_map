@@ -2,10 +2,14 @@ from flask import Flask,render_template,request, jsonify
 from uuid import uuid4
 import os
 import requests
+import json
+import io
+
+import base64
 
 from PIL import Image
-import io
-import json
+
+
 
 
 app = Flask(__name__, template_folder='templete')
@@ -26,19 +30,39 @@ def process():
     if 'image' not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
 
-    image = request.files['image']
-    bbox = json.loads(request.form['bbox'])
+    image_file = request.files['image']
+    bbox = json.loads(request.form['bbox'])  # [x1, y1, x2, y2]
     message = request.form['message']
 
-    image = Image.open(io.BytesIO(image.read()))
-    # Save image
-    image_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{'UPLOADED'}.png")
-    image.save(image_path)
+    # Load the image
+    image = Image.open(io.BytesIO(image_file.read())).convert("RGB")
 
-    # Placeholder response - Replace with actual model processing
-    response_text = f"Processed image with BBox: {bbox} and message: {message}"
+    # Crop using bbox
+    x1, y1, x2, y2 = map(int, bbox)
+    cropped_image = image.crop((x1, y1, x2, y2))
 
-    return jsonify({"message": message, "response": response_text})
+    # Optional image processing (e.g., resize or enhance)
+    processed_image = cropped_image  # or add image processing logic here
+
+    # Encode cropped image as base64
+    buffered = io.BytesIO()
+    processed_image.save(buffered, format="PNG")
+    img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    base64_string = f"data:image/png;base64,{img_base64}"
+
+    # Send POST request to the remote LitServe API
+    api_url = "https://8001-01js3j9z7whtnaqyt11jpqb69r.cloudspaces.litng.ai/predict"
+    response = requests.post(api_url, json={"image": base64_string})
+
+    if response.status_code != 200:
+        return jsonify({"error": "Failed to get response from model API", "details": response.text}), 500
+
+    result = response.json()
+
+    return jsonify({
+        "message": message,
+        "model_response": result
+    })
 
 
 if __name__ == "__main__":
