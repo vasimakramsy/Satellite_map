@@ -31,37 +31,43 @@ def process():
         return jsonify({"error": "No image uploaded"}), 400
 
     image_file = request.files['image']
-    bbox = json.loads(request.form['bbox'])  # [x1, y1, x2, y2]
+    bbox = json.loads(request.form['bbox'])  # Expected as a dict
     message = request.form['message']
 
     # Load the image
     image = Image.open(io.BytesIO(image_file.read())).convert("RGB")
+    width, height = image.size
 
-    # Crop using bbox
-    x1, y1, x2, y2 = map(int, bbox)
-    cropped_image = image.crop((x1, y1, x2, y2))
+    # Convert normalized bbox (north, south, east, west) to pixel coordinates
+    # Assuming bbox contains: {"north": ..., "south": ..., "east": ..., "west": ...}
+    try:
+        top = int(bbox["north"] * height)
+        bottom = int(bbox["south"] * height)
+        left = int(bbox["west"] * width)
+        right = int(bbox["east"] * width)
+    except (KeyError, TypeError, ValueError) as e:
+        return jsonify({"error": f"Invalid bounding box format: {e}"}), 400
 
-    # Optional image processing (e.g., resize or enhance)
-    processed_image = cropped_image  # or add image processing logic here
+    # Crop and process the image
+    cropped_image = image.crop((left, top, right, bottom))
+    processed_image = cropped_image
 
-    # Encode cropped image as base64
+    # Convert to base64
     buffered = io.BytesIO()
     processed_image.save(buffered, format="PNG")
     img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
     base64_string = f"data:image/png;base64,{img_base64}"
 
-    # Send POST request to the remote LitServe API
+    # Send to LitServe API
     api_url = "https://8001-01js3j9z7whtnaqyt11jpqb69r.cloudspaces.litng.ai/predict"
     response = requests.post(api_url, json={"image": base64_string})
 
     if response.status_code != 200:
         return jsonify({"error": "Failed to get response from model API", "details": response.text}), 500
 
-    result = response.json()
-
     return jsonify({
         "message": message,
-        "model_response": result
+        "model_response": response.json()
     })
 
 
