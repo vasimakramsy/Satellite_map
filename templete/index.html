@@ -212,8 +212,8 @@
     }
 
     function sendMessage() {
-        let messageBox = document.getElementById("message-box");
-        let message = messageBox.value.trim();
+        const messageBox = document.getElementById("message-box");
+        const message = messageBox.value.trim();
 
         if (!selectedRectangle) {
             alert("Please select an area on the map first!");
@@ -229,7 +229,7 @@
         messageBox.value = "";
     }
 
-    function captureMapImage(message) {
+    function captureMapImage(userMessage) {
         if (!bboxCoords) {
             alert("Please select a bounding box first!");
             return;
@@ -248,10 +248,10 @@
         fetch(staticMapUrl)
             .then(response => response.blob())
             .then(blob => {
-                let formData = new FormData();
+                const formData = new FormData();
                 formData.append("image", blob, "map_capture.png");
                 formData.append("bbox", JSON.stringify(bboxCoords));
-                formData.append("message", message);
+                formData.append("message", userMessage); // ✅ Pass correct message
 
                 return fetch("/process", {
                     method: "POST",
@@ -270,16 +270,14 @@
     }
 
     function displayResponse(data) {
-        let messagesDiv = document.getElementById("messages");
+        const messagesDiv = document.getElementById("messages");
 
-        // User message
-        let userMessage = document.createElement("div");
+        const userMessage = document.createElement("div");
         userMessage.classList.add("message", "user");
         userMessage.textContent = "USER: " + data.message;
         messagesDiv.appendChild(userMessage);
 
-        // Assistant response
-        let assistantMessage = document.createElement("div");
+        const assistantMessage = document.createElement("div");
         assistantMessage.classList.add("message", "assistant");
 
         if (data.model_response && data.model_response.results) {
