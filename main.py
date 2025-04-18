@@ -31,34 +31,42 @@ def process():
         return jsonify({"error": "No image uploaded"}), 400
 
     image_file = request.files['image']
-    bbox = json.loads(request.form['bbox'])  # Expected as a dict
+    bbox = json.loads(request.form['bbox'])  # Expected to be dict
     message = request.form['message']
 
-    # Load the image
+    # Load image and get dimensions
     image = Image.open(io.BytesIO(image_file.read())).convert("RGB")
     width, height = image.size
 
-    # Convert normalized bbox (north, south, east, west) to pixel coordinates
-    # Assuming bbox contains: {"north": ..., "south": ..., "east": ..., "west": ...}
+    # Extract and convert bbox to pixel coordinates
     try:
         top = int(bbox["north"] * height)
         bottom = int(bbox["south"] * height)
         left = int(bbox["west"] * width)
         right = int(bbox["east"] * width)
+
+        # Clamp values to image bounds
+        top = max(0, min(top, height))
+        bottom = max(0, min(bottom, height))
+        left = max(0, min(left, width))
+        right = max(0, min(right, width))
+
+        if bottom <= top or right <= left:
+            return jsonify({"error": "Invalid bbox after clamping."}), 400
+
     except (KeyError, TypeError, ValueError) as e:
         return jsonify({"error": f"Invalid bounding box format: {e}"}), 400
 
     # Crop and process the image
     cropped_image = image.crop((left, top, right, bottom))
-    processed_image = cropped_image
 
     # Convert to base64
     buffered = io.BytesIO()
-    processed_image.save(buffered, format="PNG")
+    cropped_image.save(buffered, format="PNG")  # This line caused the crash if bbox was out of bounds
     img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
     base64_string = f"data:image/png;base64,{img_base64}"
 
-    # Send to LitServe API
+    # Send to external API
     api_url = "https://8001-01js3j9z7whtnaqyt11jpqb69r.cloudspaces.litng.ai/predict"
     response = requests.post(api_url, json={"image": base64_string})
 
