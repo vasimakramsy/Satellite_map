@@ -141,153 +141,165 @@
     </div>
 
     <script>
-        let map, drawingManager, selectedRectangle = null;
-        let bboxCoords = null;
+    let map, drawingManager, selectedRectangle = null;
+    let bboxCoords = null;
 
-        function initMap() {
-            map = new google.maps.Map(document.getElementById("map"), {
-                center: { lat: 24.7136, lng: 46.6753 },
-                zoom: 15,
-                mapTypeId: "satellite",
-                mapTypeControl: false
-            });
+    function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: { lat: 24.7136, lng: 46.6753 },
+            zoom: 15,
+            mapTypeId: "satellite",
+            mapTypeControl: false
+        });
 
-            const searchBox = new google.maps.places.SearchBox(document.getElementById("search-box"));
-            map.controls[google.maps.ControlPosition.TOP_CENTER].push(document.getElementById("search-box"));
+        const searchBox = new google.maps.places.SearchBox(document.getElementById("search-box"));
+        map.controls[google.maps.ControlPosition.TOP_CENTER].push(document.getElementById("search-box"));
 
-            searchBox.addListener("places_changed", () => {
-                const places = searchBox.getPlaces();
-                if (places.length === 0) return;
-                map.setCenter(places[0].geometry.location);
-                map.setZoom(15);
-            });
+        searchBox.addListener("places_changed", () => {
+            const places = searchBox.getPlaces();
+            if (places.length === 0) return;
+            map.setCenter(places[0].geometry.location);
+            map.setZoom(15);
+        });
 
-            drawingManager = new google.maps.drawing.DrawingManager({
-                drawingMode: google.maps.drawing.OverlayType.RECTANGLE,
-                drawingControl: true,
-                drawingControlOptions: {
-                    position: google.maps.ControlPosition.TOP_CENTER,
-                    drawingModes: ["rectangle"]
-                },
-                rectangleOptions: {
-                    fillColor: "#FF0000",
-                    fillOpacity: 0.3,
-                    strokeWeight: 2,
-                    clickable: false,
-                    editable: true,
-                    zIndex: 1
-                }
-            });
+        drawingManager = new google.maps.drawing.DrawingManager({
+            drawingMode: google.maps.drawing.OverlayType.RECTANGLE,
+            drawingControl: true,
+            drawingControlOptions: {
+                position: google.maps.ControlPosition.TOP_CENTER,
+                drawingModes: ["rectangle"]
+            },
+            rectangleOptions: {
+                fillColor: "#FF0000",
+                fillOpacity: 0.3,
+                strokeWeight: 2,
+                clickable: false,
+                editable: true,
+                zIndex: 1
+            }
+        });
 
-            drawingManager.setMap(map);
+        drawingManager.setMap(map);
 
-            google.maps.event.addListener(drawingManager, 'overlaycomplete', function(event) {
-                if (selectedRectangle) {
-                    selectedRectangle.setMap(null);
-                }
-
-                selectedRectangle = event.overlay;
-
-                const bounds = selectedRectangle.getBounds();
-                bboxCoords = {
-                    north: bounds.getNorthEast().lat(),
-                    east: bounds.getNorthEast().lng(),
-                    south: bounds.getSouthWest().lat(),
-                    west: bounds.getSouthWest().lng()
-                };
-
-                drawingManager.setDrawingMode(null);
-                document.getElementById("delete-btn").style.display = "inline-block";
-            });
-        }
-
-        function deleteBBox() {
+        google.maps.event.addListener(drawingManager, 'overlaycomplete', function (event) {
             if (selectedRectangle) {
                 selectedRectangle.setMap(null);
-                selectedRectangle = null;
-                bboxCoords = null;
-                drawingManager.setDrawingMode(google.maps.drawing.OverlayType.RECTANGLE);
-                document.getElementById("delete-btn").style.display = "none";
             }
+
+            selectedRectangle = event.overlay;
+
+            const bounds = selectedRectangle.getBounds();
+            bboxCoords = {
+                north: bounds.getNorthEast().lat(),
+                east: bounds.getNorthEast().lng(),
+                south: bounds.getSouthWest().lat(),
+                west: bounds.getSouthWest().lng()
+            };
+
+            drawingManager.setDrawingMode(null);
+            document.getElementById("delete-btn").style.display = "inline-block";
+        });
+    }
+
+    function deleteBBox() {
+        if (selectedRectangle) {
+            selectedRectangle.setMap(null);
+            selectedRectangle = null;
+            bboxCoords = null;
+            drawingManager.setDrawingMode(google.maps.drawing.OverlayType.RECTANGLE);
+            document.getElementById("delete-btn").style.display = "none";
+        }
+    }
+
+    function sendMessage() {
+        let messageBox = document.getElementById("message-box");
+        let message = messageBox.value.trim();
+
+        if (!selectedRectangle) {
+            alert("Please select an area on the map first!");
+            return;
         }
 
-        function sendMessage() {
-            let messageBox = document.getElementById("message-box");
-            let message = messageBox.value.trim();
-
-            if (!selectedRectangle) {
-                alert("Please select an area on the map first!");
-                return;
-            }
-
-            if (!message) {
-                alert("Please enter a message!");
-                return;
-            }
-
-            captureMapImage(message);
-            messageBox.value = "";
+        if (!message) {
+            alert("Please enter a message!");
+            return;
         }
 
-        function captureMapImage(message) {
-            if (!bboxCoords) {
-                alert("Please select a bounding box first!");
-                return;
-            }
+        captureMapImage(message);
+        messageBox.value = "";
+    }
 
-            const apiKey = "AIzaSyC39DPK0MwCiJOmBIzTmX30IPg6kWeWW44";
-            const mapCenter = `${(bboxCoords.north + bboxCoords.south) / 2},${(bboxCoords.east + bboxCoords.west) / 2}`;
-            const zoom = 15;
-            const mapSize = "600x400";
-            const bboxOverlay = `&path=color:0xff0000ff|weight:5|${bboxCoords.north},${bboxCoords.west}|${bboxCoords.north},${bboxCoords.east}|${bboxCoords.south},${bboxCoords.east}|${bboxCoords.south},${bboxCoords.west}|${bboxCoords.north},${bboxCoords.west}`;
+    function captureMapImage(message) {
+        if (!bboxCoords) {
+            alert("Please select a bounding box first!");
+            return;
+        }
 
-            const staticMapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${mapCenter}&zoom=${zoom}&size=${mapSize}&maptype=satellite${bboxOverlay}&key=${apiKey}`;
+        const apiKey = "AIzaSyC39DPK0MwCiJOmBIzTmX30IPg6kWeWW44";
+        const mapCenter = `${(bboxCoords.north + bboxCoords.south) / 2},${(bboxCoords.east + bboxCoords.west) / 2}`;
+        const zoom = 15;
+        const mapSize = "600x400";
+        const bboxOverlay = `&path=color:0xff0000ff|weight:5|${bboxCoords.north},${bboxCoords.west}|${bboxCoords.north},${bboxCoords.east}|${bboxCoords.south},${bboxCoords.east}|${bboxCoords.south},${bboxCoords.west}|${bboxCoords.north},${bboxCoords.west}`;
 
-            // Show loader
-            document.getElementById("loader").style.display = "block";
+        const staticMapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${mapCenter}&zoom=${zoom}&size=${mapSize}&maptype=satellite${bboxOverlay}&key=${apiKey}`;
 
-            fetch(staticMapUrl)
-                .then(response => response.blob())
-                .then(blob => {
-                    let formData = new FormData();
-                    formData.append("image", blob, "map_capture.png");
-                    formData.append("bbox", JSON.stringify(bboxCoords));
-                    formData.append("message", message);
+        document.getElementById("loader").style.display = "block";
 
-                    return fetch("/process", {
-                        method: "POST",
-                        body: formData
-                    });
-                })
-                .then(response => response.json())
-                .then(data => {
-                    displayResponse(data);
-                    document.getElementById("loader").style.display = "none";
-                })
-                .catch(error => {
-                    console.error("Error:", error);
-                    document.getElementById("loader").style.display = "none";
+        fetch(staticMapUrl)
+            .then(response => response.blob())
+            .then(blob => {
+                let formData = new FormData();
+                formData.append("image", blob, "map_capture.png");
+                formData.append("bbox", JSON.stringify(bboxCoords));
+                formData.append("message", message);
+
+                return fetch("/process", {
+                    method: "POST",
+                    body: formData
                 });
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayResponse(data);
+                document.getElementById("loader").style.display = "none";
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                document.getElementById("loader").style.display = "none";
+            });
+    }
+
+    function displayResponse(data) {
+        let messagesDiv = document.getElementById("messages");
+
+        // User message
+        let userMessage = document.createElement("div");
+        userMessage.classList.add("message", "user");
+        userMessage.textContent = "USER: " + data.message;
+        messagesDiv.appendChild(userMessage);
+
+        // Assistant response
+        let assistantMessage = document.createElement("div");
+        assistantMessage.classList.add("message", "assistant");
+
+        if (data.model_response && data.model_response.results) {
+            const results = data.model_response.results;
+            let responseText = "ASSISTANT: Detected objects:\n";
+            for (const [category, count] of Object.entries(results)) {
+                responseText += `- ${category}: ${count}\n`;
+            }
+            assistantMessage.textContent = responseText;
+        } else {
+            assistantMessage.textContent = "ASSISTANT: No objects detected or failed to analyze.";
         }
 
-        function displayResponse(data) {
-            let messagesDiv = document.getElementById("messages");
+        messagesDiv.appendChild(assistantMessage);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
 
-            let userMessage = document.createElement("div");
-            userMessage.classList.add("message", "user");
-            userMessage.textContent = "USER: " + data.message;
-            messagesDiv.appendChild(userMessage);
+    window.initMap = initMap;
+</script>
 
-            let assistantMessage = document.createElement("div");
-            assistantMessage.classList.add("message", "assistant");
-            assistantMessage.textContent = "ASSISTANT: " + data.response;
-            messagesDiv.appendChild(assistantMessage);
-
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        window.initMap = initMap;
-    </script>
 
     <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC39DPK0MwCiJOmBIzTmX30IPg6kWeWW44&libraries=places,drawing&callback=initMap"></script>
 </body>
