@@ -69,6 +69,7 @@ def process():
     # Send to external API
     api_url = "https://8001-01js3j9z7whtnaqyt11jpqb69r.cloudspaces.litng.ai/predict"
     response = requests.post(api_url, json={"image": base64_string})
+    print(response)
 
     if response.status_code != 200:
         return jsonify({"error": "Failed to get response from model API", "details": response.text}), 500
