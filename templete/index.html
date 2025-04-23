@@ -99,7 +99,6 @@
             color: blue;
         }
 
-        /* Spinner style */
         #loader {
             display: none;
             border: 4px solid rgba(0, 0, 0, 0.1);
@@ -237,7 +236,7 @@
 
         const apiKey = "AIzaSyC39DPK0MwCiJOmBIzTmX30IPg6kWeWW44";
         const mapCenter = `${(bboxCoords.north + bboxCoords.south) / 2},${(bboxCoords.east + bboxCoords.west) / 2}`;
-        const zoom = 15;
+        const zoom = map.getZoom(); // ✅ Dynamic zoom level
         const mapSize = "600x400";
         const bboxOverlay = `&path=color:0xff0000ff|weight:5|${bboxCoords.north},${bboxCoords.west}|${bboxCoords.north},${bboxCoords.east}|${bboxCoords.south},${bboxCoords.east}|${bboxCoords.south},${bboxCoords.west}|${bboxCoords.north},${bboxCoords.west}`;
 
@@ -251,7 +250,8 @@
                 const formData = new FormData();
                 formData.append("image", blob, "map_capture.png");
                 formData.append("bbox", JSON.stringify(bboxCoords));
-                formData.append("message", userMessage); // ✅ Pass correct message
+                formData.append("message", userMessage);
+                formData.append("zoom", zoom); // Optional: send zoom to backend
 
                 return fetch("/process", {
                     method: "POST",
@@ -270,35 +270,34 @@
     }
 
     function displayResponse(data) {
-        console.log(data);
-        const messagesDiv = document.getElementById("messages");
+    const messagesDiv = document.getElementById("messages");
 
-        const userMessage = document.createElement("div");
-        userMessage.classList.add("message", "user");
-        userMessage.textContent = "USER: " + data.message;
-        messagesDiv.appendChild(userMessage);
+    const userMessage = document.createElement("div");
+    userMessage.classList.add("message", "user");
+    userMessage.textContent = "USER: " + data.message;
+    messagesDiv.appendChild(userMessage);
 
-        const assistantMessage = document.createElement("div");
-        assistantMessage.classList.add("message", "assistant");
+    const assistantMessage = document.createElement("div");
+    assistantMessage.classList.add("message", "assistant");
 
-        if (data.model_response && data.model_response.results) {
-            const results = data.model_response.results;
-            let responseText = "ASSISTANT: Detected objects:\n";
-            for (const [category, count] of Object.entries(results)) {
-                responseText += `- ${category}: ${count}\n`;
-            }
-            assistantMessage.textContent = responseText;
-        } else {
-            assistantMessage.textContent = "ASSISTANT: No objects detected or failed to analyze.";
+    const response = data.response;
+
+    if (response && typeof response === "object") {
+        let responseText = "ASSISTANT:\n";
+        for (const [key, value] of Object.entries(response)) {
+            responseText += `${key}: ${value}\n`;
         }
-
-        messagesDiv.appendChild(assistantMessage);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        assistantMessage.textContent = responseText;
+    } else {
+        assistantMessage.textContent = "ASSISTANT: No objects detected or failed to analyze.";
     }
 
-    window.initMap = initMap;
-</script>
+    messagesDiv.appendChild(assistantMessage);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
 
+    window.initMap = initMap;
+    </script>
 
     <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC39DPK0MwCiJOmBIzTmX30IPg6kWeWW44&libraries=places,drawing&callback=initMap"></script>
 </body>
